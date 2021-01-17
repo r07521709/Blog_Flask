@@ -1,14 +1,21 @@
 from flask import render_template, flash, redirect, url_for, request
 from flask_login import login_user, login_required, current_user, logout_user
 from app import app, bcrypt, db
-from app.forms import RegisterForm, LoginForm, PasswordResetRequestForm, ResetPasswordForm
+from app.forms import RegisterForm, LoginForm, PasswordResetRequestForm, ResetPasswordForm, PostTweetForm
 from app.email import send_reset_password_mail
-from app.models import User
+from app.models import User, Post
 
-@app.route('/')
+@app.route('/', methods=['GET','POST'])
 @login_required
 def index():
-    return render_template('index.html')
+    form = PostTweetForm()
+    if form.validate_on_submit():
+        body = form.text.data
+        post = Post(body=body) 
+        current_user.posts.append(post)
+        db.session.commit()
+        flash('You have post a new tweet', category='success')
+    return render_template('index.html', form=form)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -37,7 +44,6 @@ def login():
         remember = form.remember.data
         user = User.query.filter_by(username=username).first()
         if user and bcrypt.check_password_hash(user.password, password):
-            pass
             login_user(user, remember=remember)
             flash('Login Success', category='info')
             # Next behind url stores the next page.
