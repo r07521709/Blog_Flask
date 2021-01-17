@@ -1,7 +1,9 @@
 # https://flask-sqlalchemy.palletsprojects.com/en/2.x/quickstart/
 # To create the initial database, just import the db object from an interactive Python shell
 # The next steps are in the above URL
+from flask import current_app
 from flask_login import UserMixin
+import jwt
 from app import db, login
 
 @login.user_loader
@@ -16,3 +18,15 @@ class User(db.Model, UserMixin):
 
     def __repr__(self):
         return '<User %r>' % self.username
+
+    # https://github.com/jpadilla/pyjwt
+    def generate_reset_password_token(self):
+        return jwt.encode({'id': self.id}, current_app.config['SECRET_KEY'], algorithm='HS256')
+
+    @staticmethod
+    def check_reset_password_token(token):
+        try:
+            data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
+            return User.query.filter_by(id=data['id']).first()
+        except:
+            return
