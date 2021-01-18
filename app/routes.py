@@ -15,7 +15,11 @@ def index():
         current_user.posts.append(post)
         db.session.commit()
         flash('You have post a new tweet', category='success')
-    return render_template('index.html', form=form)
+    n_followers = len(current_user.followers)
+    n_followed = len(current_user.followed)
+    page = request.args.get('page', 1, type=int)
+    posts = Post.query.order_by(Post.timestamp.desc()).paginate(page, 5, False)
+    return render_template('index.html', form=form, posts=posts, n_followers=n_followers, n_followed=n_followed)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
