@@ -1,9 +1,18 @@
 from flask import render_template, flash, redirect, url_for, request
 from flask_login import login_user, login_required, current_user, logout_user
+import os
+from werkzeug.utils import secure_filename
 from app import app, bcrypt, db
-from app.forms import RegisterForm, LoginForm, PasswordResetRequestForm, ResetPasswordForm, PostTweetForm
+from app.forms import *
 from app.email import send_reset_password_mail
 from app.models import User, Post
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 @app.route('/', methods=['GET','POST'])
 @login_required
@@ -20,6 +29,61 @@ def index():
     page = request.args.get('page', 1, type=int)
     posts = Post.query.order_by(Post.timestamp.desc()).paginate(page, 5, False)
     return render_template('index.html', form=form, posts=posts, n_followers=n_followers, n_followed=n_followed)
+
+@app.route('/user_page/<username>')
+@login_required
+def user_page(username):
+    user = User.query.filter_by(username=username).first()
+    if user:
+        page = request.args.get('page', 1, type=int)
+        posts = Post.query.filter_by(user_id=user.id).order_by(Post.timestamp.desc()).paginate(page, 5, False)
+        return render_template('user_page.html', user=user, posts=posts)
+    else:
+        return '404'
+
+@app.route('/follow/<username>')
+@login_required
+def follow(username):
+    user = User.query.filter_by(username=username).first()
+    if user:
+        current_user.follow(user)
+        db.session.commit()
+        page = request.args.get('page', 1, type=int)
+        posts = Post.query.filter_by(user_id=user.id).order_by(Post.timestamp.desc()).paginate(page, 5, False)
+        return render_template('user_page.html', user=user, posts=posts)
+    else:
+        return '404'
+
+@app.route('/unfollow/<username>')
+@login_required
+def unfollow(username):
+    user = User.query.filter_by(username=username).first()
+    if user:
+        current_user.unfollow(user)
+        db.session.commit()
+        page = request.args.get('page', 1, type=int)
+        posts = Post.query.filter_by(user_id=user.id).order_by(Post.timestamp.desc()).paginate(page, 5, False)
+        return render_template('user_page.html', user=user, posts=posts)
+    else:
+        return '404'
+
+@app.route('/edit_profile', methods=['GET', 'POST'])
+@login_required
+def edit_profile():
+    form = UploadPhotoForm()
+    if form.validate_on_submit():
+        f = form.photo.data
+        if f.filename == '':
+            flash('No selected file', category='danger')
+            return render_template('edit_profile.html', form=form)
+        if f and allowed_file(f.filename):
+            # To protect application 
+            filename = secure_filename(f.filename)
+            f.save(os.path.join('app', 'static', 'assets', filename))
+            current_user.avatar_img = '/static/assets/' + filename
+            db.session.commit()
+            return redirect(url_for('user_page', username=current_user.username))
+    return render_template('edit_profile.html', form=form)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():

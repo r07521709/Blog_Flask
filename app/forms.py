@@ -1,4 +1,5 @@
 from flask_wtf import FlaskForm, RecaptchaField
+from flask_wtf.file import FileField, FileRequired
 from wtforms import StringField, PasswordField, SubmitField, BooleanField, TextAreaField
 from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError
 from app.models import User
@@ -50,3 +51,8 @@ class PostTweetForm(FlaskForm):
 
     text = TextAreaField('Say something ...', validators=[DataRequired(), Length(min=1, max=140)])
     submit = SubmitField('Post Text')
+
+class UploadPhotoForm(FlaskForm):
+
+    photo = FileField(validators=[FileRequired()])
+    submit = SubmitField('Upload')
